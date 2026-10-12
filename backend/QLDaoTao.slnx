@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/00. Tools/">
+    <Project Path="src/Tools/DbInitializer/DbInitializer.csproj" />
+  </Folder>
+  <Folder Name="/01. Gateways/">
+    <Project Path="src/Gateways/ApiGateway/ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/02. Shared/">
+    <Project Path="src/Shared/Shared.Common/Shared.Common.csproj" />
+    <Project Path="src/Shared/Shared.Security/Shared.Security.csproj" />
+  </Folder>
+  <Folder Name="/03. Services/" />
+  <Folder Name="/03. Services/Academic/">
+    <Project Path="src/Services/Academic/Academic.API/Academic.API.csproj" />
+  </Folder>
+  <Folder Name="/03. Services/Catalog/">
+    <Project Path="src/Services/Catalog/Catalog.API/Catalog.API.csproj" />
+  </Folder>
+  <Folder Name="/03. Services/Grading/">
+    <Project Path="src/Services/Grading/Grading.API/Grading.API.csproj" />
+  </Folder>
+  <Folder Name="/03. Services/Identity/">
+    <Project Path="src/Services/Identity/Identity.API/Identity.API.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,10 @@
+{
+  "name": "qldt-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm --prefix admin-portal run dev",
+    "build": "npm --prefix admin-portal run build",
+    "preview": "npm --prefix admin-portal run preview"
+  }
+}

@@ -1,0 +1,110 @@
+# ====================================================================
+# .gitignore - Hệ Thống Quản Lý Đào Tạo Microservices
+# ====================================================================
+
+# --------------------------------------------------
+# .NET / C# Build Artifacts
+# --------------------------------------------------
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+_ReSharper*/
+*.DotSettings.user
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# --------------------------------------------------
+# Node.js / Frontend (Vite / React / Ant Design)
+# --------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --------------------------------------------------
+# Python / Scripts
+# --------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+parts/
+var/
+sdist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --------------------------------------------------
+# IDE & Editors
+# --------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
+
+# --------------------------------------------------
+# Operating System Files
+# --------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --------------------------------------------------
+# Sensitive Files & Local Configurations
+# --------------------------------------------------
+*.env
+*.env.development.local
+*.env.test.local
+*.env.production.local
+appsettings.Production.json
+appsettings.Local.json
+*.pfx
+*.certificate
+
+# --------------------------------------------------
+# AI Agent Skills, Rules & Temporary Plans
+# --------------------------------------------------
+.agents/
+.gemini/
+SETUP_MICROSERVICES.md
+IMPLEMENTATION_PHASE_1.md
+test_gateway.py
+.tempmediaStorage/
+*.tmp
+*.log
+
