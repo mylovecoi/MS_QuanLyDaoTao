@@ -62,6 +62,8 @@ interface ResetPasswordFormValues {
   newPassword: string;
 }
 
+import { useDebounce } from '../../hooks/useDebounce';
+
 export const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,8 +71,9 @@ export const UserManagementPage: React.FC = () => {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState<number | undefined>(undefined);
-  const [selectedStatus, setSelectedStatus] = useState<boolean | undefined>(undefined);
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
+  const [selectedRole, setSelectedRole] = useState<number | 'ALL'>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<boolean | 'ALL'>('ALL');
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -94,9 +97,9 @@ export const UserManagementPage: React.FC = () => {
         pageNumber,
         pageSize,
       };
-      if (searchTerm.trim()) params.searchTerm = searchTerm.trim();
-      if (selectedRole !== undefined) params.role = selectedRole;
-      if (selectedStatus !== undefined) params.isActive = selectedStatus;
+      if (debouncedSearchTerm.trim()) params.searchTerm = debouncedSearchTerm.trim();
+      if (selectedRole !== 'ALL') params.role = selectedRole;
+      if (selectedStatus !== 'ALL') params.isActive = selectedStatus;
 
       const response = await apiClient.get('/api/auth/users', { params });
       if (response.data?.success && response.data?.data) {
@@ -110,7 +113,12 @@ export const UserManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageNumber, pageSize, searchTerm, selectedRole, selectedStatus]);
+  }, [pageNumber, pageSize, debouncedSearchTerm, selectedRole, selectedStatus]);
+
+  // Tự động nhảy về trang 1 khi từ khóa tìm kiếm thay đổi
+  useEffect(() => {
+    setPageNumber(1);
+  }, [debouncedSearchTerm]);
 
   useEffect(() => {
     fetchUsers();
@@ -313,27 +321,26 @@ export const UserManagementPage: React.FC = () => {
             />
           </Tooltip>
 
-          <Tooltip title={record.isActive ? 'Khóa tài khoản' : 'Kích hoạt tài khoản'}>
-            <Popconfirm
-              title={record.isActive ? 'Khóa tài khoản này?' : 'Mở khóa tài khoản này?'}
-              description={`Bạn có chắc muốn ${record.isActive ? 'khóa' : 'kích hoạt'} tài khoản "${record.username}"?`}
-              onConfirm={() => handleToggleStatus(record)}
-              okText="Đồng ý"
-              cancelText="Hủy"
-            >
-              <Button
-                type="text"
-                danger={record.isActive}
-                icon={
-                  record.isActive ? (
-                    <StopOutlined />
-                  ) : (
-                    <CheckCircleOutlined style={{ color: '#16A34A' }} />
-                  )
-                }
-              />
-            </Popconfirm>
-          </Tooltip>
+          <Popconfirm
+            title={record.isActive ? 'Khóa tài khoản này?' : 'Mở khóa tài khoản này?'}
+            description={`Bạn có chắc muốn ${record.isActive ? 'khóa' : 'kích hoạt'} tài khoản "${record.username}"?`}
+            onConfirm={() => handleToggleStatus(record)}
+            okText="Đồng ý"
+            cancelText="Hủy"
+            placement="left"
+          >
+            <Button
+              type="text"
+              danger={record.isActive}
+              icon={
+                record.isActive ? (
+                  <StopOutlined />
+                ) : (
+                  <CheckCircleOutlined style={{ color: '#16A34A' }} />
+                )
+              }
+            />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -389,14 +396,13 @@ export const UserManagementPage: React.FC = () => {
             <Select
               style={{ width: '100%' }}
               placeholder="Lọc theo vai trò"
-              allowClear
               value={selectedRole}
               onChange={(val) => {
                 setSelectedRole(val);
                 setPageNumber(1);
               }}
               options={[
-                { label: 'Tất cả vai trò', value: undefined },
+                { label: 'Tất cả vai trò', value: 'ALL' },
                 { label: 'Quản Trị Viên (Admin)', value: 1 },
                 { label: 'Cán Bộ Đào Tạo', value: 2 },
                 { label: 'Học Viên', value: 3 },
@@ -407,14 +413,13 @@ export const UserManagementPage: React.FC = () => {
             <Select
               style={{ width: '100%' }}
               placeholder="Lọc theo trạng thái"
-              allowClear
               value={selectedStatus}
               onChange={(val) => {
                 setSelectedStatus(val);
                 setPageNumber(1);
               }}
               options={[
-                { label: 'Tất cả trạng thái', value: undefined },
+                { label: 'Tất cả trạng thái', value: 'ALL' },
                 { label: 'Đang hoạt động', value: true },
                 { label: 'Đã khóa', value: false },
               ]}

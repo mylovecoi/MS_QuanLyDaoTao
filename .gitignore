@@ -97,12 +97,12 @@ appsettings.Local.json
 *.certificate
 
 # --------------------------------------------------
-# AI Agent Skills, Rules & Temporary Plans
+# AI Agent Skills, Rules, Temporary Plans & Documentation
 # --------------------------------------------------
 .agents/
 .gemini/
-SETUP_MICROSERVICES.md
-IMPLEMENTATION_PHASE_1.md
+plan/
+plans/
 test_gateway.py
 .tempmediaStorage/
 *.tmp

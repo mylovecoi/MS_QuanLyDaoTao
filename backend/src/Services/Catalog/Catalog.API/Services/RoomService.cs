@@ -2,6 +2,7 @@ using Catalog.API.Data;
 using Catalog.API.DTOs;
 using Catalog.API.Entities;
 using Microsoft.EntityFrameworkCore;
+using Shared.Common.Enums;
 using Shared.Common.Pagination;
 
 namespace Catalog.API.Services;
@@ -15,14 +16,20 @@ public class RoomService : IRoomService
         _context = context;
     }
 
-    public async Task<PagedResult<RoomDto>> GetPagedAsync(PaginationFilter filter)
+    public async Task<PagedResult<RoomDto>> GetPagedAsync(PaginationFilter filter, RoomStatus? status = null)
     {
         var query = _context.Rooms.AsNoTracking().AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        var searchTerm = filter.SearchTerm ?? filter.Keyword;
+        if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = filter.SearchTerm.Trim().ToLower();
+            var term = searchTerm.Trim().ToLower();
             query = query.Where(r => r.Name.ToLower().Contains(term) || (r.Address != null && r.Address.ToLower().Contains(term)));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(r => r.Status == status.Value);
         }
 
         var totalRecords = await query.CountAsync();

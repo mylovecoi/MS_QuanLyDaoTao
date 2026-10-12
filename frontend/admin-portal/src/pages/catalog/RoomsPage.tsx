@@ -45,6 +45,9 @@ interface RoomFormValues {
   notes?: string;
 }
 
+import { useDebounce } from '../../hooks/useDebounce';
+import { SearchOutlined } from '@ant-design/icons';
+
 export const RoomsPage: React.FC = () => {
   const [data, setData] = useState<RoomItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -52,7 +55,8 @@ export const RoomsPage: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [keyword, setKeyword] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
+  const debouncedKeyword = useDebounce(keyword, 350);
+  const [statusFilter, setStatusFilter] = useState<number | 'ALL'>('ALL');
 
   // Modal State
   const [modalOpen, setModalOpen] = useState<boolean>(false);
@@ -60,24 +64,27 @@ export const RoomsPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [form] = Form.useForm<RoomFormValues>();
-  const [searchForm] = Form.useForm();
 
   const fetchRooms = async (
     targetPage = page,
     targetPageSize = pageSize,
-    searchKw = keyword,
+    searchKw = debouncedKeyword,
     status = statusFilter
   ) => {
     setLoading(true);
     try {
       let url = `/api/catalog/rooms?pageNumber=${targetPage}&pageSize=${targetPageSize}`;
-      if (searchKw) url += `&keyword=${encodeURIComponent(searchKw)}`;
-      if (status !== undefined) url += `&status=${status}`;
+      if (searchKw && searchKw.trim()) {
+        url += `&searchTerm=${encodeURIComponent(searchKw.trim())}&keyword=${encodeURIComponent(searchKw.trim())}`;
+      }
+      if (status !== undefined && status !== null && status !== 'ALL') {
+        url += `&status=${status}`;
+      }
 
       const res = await apiClient.get(url);
       if (res.data?.success && res.data?.data) {
         setData(res.data.data.items || []);
-        setTotalCount(res.data.data.totalCount || 0);
+        setTotalCount(res.data.data.totalRecords ?? res.data.data.totalCount ?? 0);
       }
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Không thể tải danh sách phòng học.');
@@ -86,23 +93,20 @@ export const RoomsPage: React.FC = () => {
     }
   };
 
+  // Tự động nhảy về trang 1 khi từ khóa hoặc trạng thái thay đổi
   useEffect(() => {
-    fetchRooms();
-  }, [page, pageSize]);
-
-  const handleSearch = (values: { keyword?: string; status?: number }) => {
     setPage(1);
-    setKeyword(values.keyword || '');
-    setStatusFilter(values.status);
-    fetchRooms(1, pageSize, values.keyword || '', values.status);
-  };
+  }, [debouncedKeyword, statusFilter]);
+
+  // Tự động gọi API khi page, pageSize, từ khóa debounced hoặc trạng thái thay đổi
+  useEffect(() => {
+    fetchRooms(page, pageSize, debouncedKeyword, statusFilter);
+  }, [page, pageSize, debouncedKeyword, statusFilter]);
 
   const handleReset = () => {
-    searchForm.resetFields();
     setPage(1);
     setKeyword('');
-    setStatusFilter(undefined);
-    fetchRooms(1, pageSize, '', undefined);
+    setStatusFilter('ALL');
   };
 
   const openCreateModal = () => {
@@ -233,12 +237,15 @@ export const RoomsPage: React.FC = () => {
             description={`Bạn có chắc muốn xóa phòng ${record.name}?`}
             okText="Xóa"
             cancelText="Hủy"
+            placement="left"
             okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(record.id)}
           >
-            <Tooltip title="Xóa phòng">
-              <Button type="text" danger icon={<DeleteOutlined />} />
-            </Tooltip>
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+            />
           </Popconfirm>
         </Space>
       ),
@@ -278,39 +285,31 @@ export const RoomsPage: React.FC = () => {
 
       {/* TẦNG 2: Search & Filter Card */}
       <Card size="small" style={{ borderRadius: 10 }}>
-        <Form
-          form={searchForm}
-          layout="inline"
-          onFinish={handleSearch}
-          style={{ gap: '8px 16px' }}
-        >
-          <Form.Item name="keyword" style={{ margin: 0 }}>
-            <Input.Search
-              placeholder="Tìm theo tên phòng, địa chỉ..."
-              allowClear
-              onSearch={() => searchForm.submit()}
-              style={{ width: 280 }}
-            />
-          </Form.Item>
-          <Form.Item name="status" style={{ margin: 0 }}>
-            <Select
-              placeholder="Chọn trạng thái"
-              allowClear
-              style={{ width: 170 }}
-              options={[
-                { label: 'Sẵn Sàng', value: 1 },
-                { label: 'Bảo Trì', value: 2 },
-                { label: 'Tạm Khóa', value: 3 },
-              ]}
-              onChange={() => searchForm.submit()}
-            />
-          </Form.Item>
-          <Form.Item style={{ margin: 0 }}>
-            <Button icon={<ReloadOutlined />} onClick={handleReset}>
-              Làm mới
-            </Button>
-          </Form.Item>
-        </Form>
+        <Space wrap style={{ width: '100%' }}>
+          <Input
+            placeholder="Tìm nhanh theo tên phòng, địa chỉ..."
+            prefix={<SearchOutlined style={{ color: '#9CA3AF' }} />}
+            allowClear
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            style={{ width: 280 }}
+          />
+          <Select
+            placeholder="Lọc theo trạng thái"
+            value={statusFilter}
+            style={{ width: 180 }}
+            options={[
+              { label: 'Tất cả trạng thái', value: 'ALL' },
+              { label: 'Sẵn Sàng', value: 1 },
+              { label: 'Bảo Trì', value: 2 },
+              { label: 'Tạm Khóa', value: 3 },
+            ]}
+            onChange={(val) => setStatusFilter(val)}
+          />
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            Làm mới
+          </Button>
+        </Space>
       </Card>
 
       {/* TẦNG 3: Data Table */}

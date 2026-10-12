@@ -2,6 +2,7 @@ using Catalog.API.DTOs;
 using Catalog.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Shared.Common.Enums;
 using Shared.Common.Pagination;
 using Shared.Common.Responses;
 using System.Security.Claims;
@@ -20,9 +21,9 @@ public class RoomsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<RoomDto>>>> GetPaged([FromQuery] PaginationFilter filter)
+    public async Task<ActionResult<ApiResponse<PagedResult<RoomDto>>>> GetPaged([FromQuery] PaginationFilter filter, [FromQuery] RoomStatus? status = null)
     {
-        var result = await _roomService.GetPagedAsync(filter);
+        var result = await _roomService.GetPagedAsync(filter, status);
         return Ok(ApiResponse<PagedResult<RoomDto>>.SuccessResult(result, "Lấy danh sách phòng học thành công."));
     }
 

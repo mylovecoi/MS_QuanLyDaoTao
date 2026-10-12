@@ -14,6 +14,16 @@ public class PaginationFilter
     }
 
     public string? SearchTerm { get; set; }
+
+    /// <summary>
+    /// Alias cho SearchTerm để linh hoạt khi client gửi keyword hoặc searchTerm
+    /// </summary>
+    public string? Keyword
+    {
+        get => SearchTerm;
+        set => SearchTerm = value;
+    }
+
     public string? SortBy { get; set; }
     public bool IsAscending { get; set; } = true;
 }
