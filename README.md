@@ -1,4 +1,4 @@
-# 🎓 HỆ THỐNG QUẢN LÝ ĐÀO TẠO & KHẢO THÍ ĐẠI HỌC (MICROSERVICES ARCHITECTURE)
+# 🎓 HỆ THỐNG QUẢN LÝ ĐÀO TẠO (MICROSERVICES ARCHITECTURE)
 
 Hệ thống quản lý đào tạo đại học toàn diện xây dựng theo kiến trúc **Microservices** phân tán hiện đại, sử dụng **.NET 10 (C#)** ở tầng Back-end, **YARP API Gateway** làm cổng điều phối tập trung, và **React + Ant Design 5** ở tầng Front-end.
 
