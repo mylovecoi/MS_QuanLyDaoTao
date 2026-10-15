@@ -1,138 +1,147 @@
-# HỆ THỐNG QUẢN LÝ ĐÀO TẠO ĐẠI HỌC & KHẢO THÍ (MICROSERVICES)
+# 🎓 HỆ THỐNG QUẢN LÝ ĐÀO TẠO & KHẢO THÍ ĐẠI HỌC (MICROSERVICES ARCHITECTURE)
 
-Hệ thống quản lý đào tạo đại học xây dựng theo kiến trúc **Microservices** phân tán, sử dụng nền tảng **.NET 10 (C#)** ở tầng Back-end, **YARP API Gateway** làm cổng điều phối, và **React 19 + Ant Design 6.x** ở tầng Front-end.
-
----
-
-## 🏛️ 1. Bản Đồ Dịch Vụ & Cổng Kết Nối (Ports & Routing)
-
-| Phân hệ / Dịch vụ | Nền tảng | Cổng nội bộ | Endpoint qua Gateway | Trách nhiệm chính |
-| :--- | :--- | :--- | :--- | :--- |
-| **API Gateway** | YARP (.NET 10) | `7000` | `http://localhost:7000` | Điểm truy cập duy nhất, định tuyến reverse proxy, CORS |
-| **Identity.API** | ASP.NET Core | `5001` | `/api/auth/**` | Xác thực JWT, Refresh Token Rotation, Quản lý tài khoản |
-| **Catalog.API** | ASP.NET Core | `5002` | `/api/catalog/**` | Danh mục dùng chung (Phòng học, Môn học, Khóa học) |
-| **Admin Portal** | React 19 + Vite | `3000` | `http://localhost:3000` | Giao diện quản trị Admin & Cán bộ đào tạo (Ant Design Pro) |
+Hệ thống quản lý đào tạo đại học toàn diện xây dựng theo kiến trúc **Microservices** phân tán hiện đại, sử dụng **.NET 10 (C#)** ở tầng Back-end, **YARP API Gateway** làm cổng điều phối tập trung, và **React + Ant Design 5** ở tầng Front-end.
 
 ---
 
-## 🔐 2. Cơ Chế Xác Thực JWT & Refresh Token (Token Rotation)
+## 🏛️ 1. Bản Đồ Dịch Vụ & Trách Nhiệm Phân Hệ (Service Architecture Matrix)
 
-### Có bị đăng xuất khi tắt frontend hay trình duyệt không?
-> **Trả lời: KHÔNG BỊ ĐĂNG XUẤT!**
-
-1. **Cơ chế lưu trữ:** Cả `accessToken`, `refreshToken` và thông tin người dùng được lưu trữ an toàn trong `localStorage` của trình duyệt.
-2. **Khi bạn tắt Web Server (`npm run dev`) hoặc tắt Trình duyệt rồi mở lại:**
-   - Dữ liệu trong `localStorage` vẫn được duy trì nguyên vẹn.
-   - Khi bạn truy cập lại trang web, `AuthContext` tự động khôi phục phiên đăng nhập từ `localStorage`.
-   - **Tự động cấp mới Token:** Khi `accessToken` hết hạn, hệ thống Front-end tự động gửi `refreshToken` ngầm qua API `POST /api/auth/refresh-token` để lấy token mới (Token Rotation). Người dùng tiếp tục thao tác bình thường mà không cần đăng nhập lại.
-3. **Khi nào bạn mới phải đăng nhập lại?**
-   - Bạn chủ động bấm nút **"Đăng xuất"** (Hệ thống sẽ xóa token ở client và gọi API revoke token ở server).
-   - `refreshToken` hết hạn hoàn toàn (mặc định sau 7 ngày).
-   - Quản trị viên thực hiện thao tác **"Đặt lại mật khẩu"** hoặc **"Khóa tài khoản"** của bạn (server tự động vô hiệu hóa toàn bộ Refresh Token của tài khoản đó).
+| Phân hệ / Dịch vụ | Nền tảng | Cổng nội bộ | Endpoint Gateway (`:7000`) | Trạng thái | Trách nhiệm chính & Cách sử dụng |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| **API Gateway** | YARP (.NET 10) | `7000` | `http://localhost:7000` | 🟢 Hoàn tất | Điểm đón duy nhất của toàn hệ thống; định tuyến Reverse Proxy; xử lý CORS và điều phối luồng request. |
+| **Identity.API** | ASP.NET Core | `5001` | `/api/auth/**` | 🟢 Hoàn tất | Quản lý định danh; cấp JWT Token & Refresh Token Rotation; Quản lý hồ sơ Cán bộ (Staff 360°), Học viên (Student); Phân quyền động (Permission Groups). |
+| **Catalog.API** | ASP.NET Core | `5002` | `/api/catalog/**` | 🟢 Hoàn tất | Danh mục dùng chung (Master Data): Phòng học (`/rooms`), Môn học (`/subjects`), Khóa học (`/courses`), Tiêu chí đánh giá. |
+| **Storage.API** | ASP.NET Core | `5006` | `/api/storage/**`<br>Static: `/uploads/**` | 🟢 Hoàn tất | Lưu trữ tệp tin đa phương tiện; upload Avatar (giới hạn 2MB, chống ghi đè); phục vụ Static Files qua Gateway. |
+| **Academic.API** | ASP.NET Core | `5003` | `/api/academic/**` | 🟡 Kế hoạch | Quản lý Lớp học (`/classes`), Khung chương trình đào tạo (`/curriculums`), Kế hoạch giảng dạy, Quản lý văn bằng. |
+| **Grading.API** | ASP.NET Core | `5004` | `/api/grading/**` | 🟡 Kế hoạch | Điểm danh (`/attendances`), Bảng điểm (`/grades`), Ngân hàng câu hỏi, Quản lý đề thi (`/exam-papers`), Xử lý vi phạm. |
+| **Notification.API** | ASP.NET Core | `5005` | `/api/notifications/**` | 🟡 Kế hoạch | Thông báo toàn trường, Tài liệu học tập, Quản lý đề tài Nghiên cứu khoa học (NCKH). |
+| **Admin Portal** | React + Vite | `5173` | `http://localhost:5173` | 🟢 Hoàn tất | Giao diện Quản trị chuẩn mực Ant Design 5 (Bố cục 3-Card, Drawer 360°, Phân quyền động, Dark/Light theme). |
 
 ---
 
-## 🚀 3. Hướng Dẫn Khởi Chạy Dự Án
+## 💡 2. Mô Tả Chi Tiết Các Microservices Đã Hoàn Thiện
 
-### Yêu cầu môi trường
+### 🔑 1. Identity Service (`Identity.API` - Port: `5001`)
+- **Mục đích:** Đóng vai trò là "trái tim" bảo mật và quản lý nhân sự của toàn hệ thống đào tạo.
+- **Chức năng chính:**
+  - **Xác thực:** Đăng nhập `/api/auth/login`, Tự động làm mới phiên `/api/auth/refresh-token` (không bị văng khi đóng trình duyệt).
+  - **Quản lý Tài khoản (`UsersController`):** Xem danh sách, tạo mới, khóa/mở khóa tài khoản, cấp lại mật khẩu.
+  - **Hồ sơ 360° (`StaffManagement` & `StudentManagement`):** Đồng bộ thông tin định danh (Mã CB, Mã HV, Phòng ban, Học hàm/Học vị, Tài khoản ngân hàng chi trả lương/học phí).
+  - **Phân quyền Động (`PermissionGroupsController`):** Thiết lập ma trận quyền chi tiết (Xem, Thêm, Sửa, Xóa) cho từng Ban / Phòng / Khoa.
+  - **An ninh IAM:** Khóa chặt 3 tầng chống leo thang đặc quyền (Privilege Escalation), ngăn chặn tuyệt đối việc Staff tự cấp quyền Admin.
+
+### 📚 2. Catalog Service (`Catalog.API` - Port: `5002`)
+- **Mục đích:** Quản lý cơ sở vật chất và dữ liệu danh mục nền tảng phục vụ xếp lịch đào tạo.
+- **Chức năng chính:**
+  - **Quản lý Phòng học (`RoomsController`):** Mã phòng, Sức chứa, Loại phòng (Lý thuyết, Thực hành máy tính, Hội trường), Tòa nhà, Trạng thái sử dụng.
+  - Hỗ trợ tìm kiếm, lọc nhanh theo loại phòng và phân trang hiệu năng cao với Entity Framework Core.
+
+### 📦 3. Storage Service (`Storage.API` - Port: `5006`)
+- **Mục đích:** Xử lý tập trung việc lưu trữ, kiểm duyệt và phục vụ tài nguyên tệp tin (Media Storage).
+- **Chức năng chính:**
+  - **Upload An Toàn (`/api/storage/upload`):** Tự động phân loại thư mục (`avatars`, `documents`, `exam-papers`), kiểm tra kích thước (tối đa 2MB cho ảnh), đổi tên file ngẫu nhiên chống tấn công ghi đè.
+  - **Phục vụ Static Content:** Định tuyến qua API Gateway tại URL `/uploads/{folder}/{filename}`.
+
+---
+
+## 🚀 3. Hướng Dẫn Cài Đặt & Khởi Chạy Dự Án
+
+### Yêu cầu phần mềm
 - [.NET 10 SDK](https://dotnet.microsoft.com/)
 - [Node.js 18+](https://nodejs.org/) & npm
 - [Microsoft SQL Server](https://www.microsoft.com/sql-server) (LocalDB hoặc SQL Server Instance)
+- Visual Studio 2022 / 2025 hoặc Visual Studio Code / Rider
 
 ---
 
 ### Bước 1: Khởi Tạo Cơ Sở Dữ Liệu & Nạp Dữ Liệu Mẫu (Seed Data)
-Đứng tại thư mục gốc dự án:
+Đứng tại thư mục gốc của dự án, mở Terminal và chạy lệnh:
 ```powershell
 cd backend
 dotnet run --project src/Tools/DbInitializer/DbInitializer.csproj
 ```
-> Lệnh này sẽ tự động tạo cơ sở dữ liệu `QLDaoTao_IdentityDb`, `QLDaoTao_CatalogDb` và tạo sẵn tài khoản Admin, Cán bộ, Sinh viên cùng danh sách phòng học mẫu.
+> 🎉 **Kết quả:** Hệ thống sẽ tự động tạo các database `QLDaoTao_IdentityDb`, `QLDaoTao_CatalogDb` và nạp sẵn tài khoản Quản trị viên, Cán bộ, Sinh viên cùng dữ liệu danh mục phòng học mẫu.
 
 ---
 
-### Bước 2: Khởi Chạy Tầng Back-end Microservices
-Mở các cửa sổ Terminal riêng (hoặc chạy ngầm):
+### Bước 2: Khởi Chạy Back-end Microservices
+Bạn có thể mở file solution `backend/QLDaoTao.slnx` bằng **Visual Studio** và chọn **Configure Startup Projects** để chạy đồng thời các service:
+1. `ApiGateway` (Port 7000 - Cổng bắt buộc)
+2. `Identity.API` (Port 5001)
+3. `Catalog.API` (Port 5002)
+4. `Storage.API` (Port 5006)
 
-1. **Chạy Identity Service:**
-   ```powershell
-   cd backend
-   dotnet run --project src/Services/Identity/Identity.API/Identity.API.csproj
-   ```
-   *(Lắng nghe tại: `http://localhost:5001` - Swagger: `http://localhost:5001/swagger`)*
+*(Hoặc chạy thủ công qua Terminal nếu không dùng Visual Studio):*
+```powershell
+# Terminal 1: API Gateway
+dotnet run --project backend/src/Gateways/ApiGateway/ApiGateway.csproj
 
-2. **Chạy Catalog Service:**
-   ```powershell
-   cd backend
-   dotnet run --project src/Services/Catalog/Catalog.API/Catalog.API.csproj
-   ```
-   *(Lắng nghe tại: `http://localhost:5002` - Swagger: `http://localhost:5002/swagger`)*
+# Terminal 2: Identity Service
+dotnet run --project backend/src/Services/Identity/Identity.API/Identity.API.csproj
 
-3. **Chạy API Gateway (Bắt buộc để kết nối Frontend):**
-   ```powershell
-   cd backend
-   dotnet run --project src/Gateways/ApiGateway/ApiGateway.csproj
-   ```
-   *(Lắng nghe tại: `http://localhost:7000`)*
+# Terminal 3: Catalog Service
+dotnet run --project backend/src/Services/Catalog/Catalog.API/Catalog.API.csproj
+
+# Terminal 4: Storage Service
+dotnet run --project backend/src/Services/Storage/Storage.API/Storage.API.csproj
+```
 
 ---
 
-### Bước 3: Khởi Chạy Tầng Front-end (Web Portal)
-
-Bạn có thể đứng ngay tại thư mục `frontend` để chạy mà không cần vào sâu bên trong:
+### Bước 3: Khởi Chạy Front-end (Admin Portal)
+Mở một cửa sổ Terminal mới:
 ```powershell
 cd frontend
 npm run dev
 ```
-*(Hoặc chạy trực tiếp tại `frontend/admin-portal`):*
-```powershell
-cd frontend/admin-portal
-npm run dev
-```
-
-Mở trình duyệt truy cập:
-👉 **`http://localhost:3000`**
+Mở trình duyệt truy cập:  
+👉 **`http://localhost:5173`**
 
 ---
 
-## 👥 4. Tài Khoản Thử Nghiệm Mẫu (Seed Credentials)
+## 👥 4. Tài Khoản Đăng Nhập Thử Nghiệm
 
-| Vai trò | Tên đăng nhập (`username`) | Mật khẩu (`password`) | Quyền hạn chính |
+| Vai trò | Tên đăng nhập | Mật khẩu mặc định | Thẩm quyền chính |
 | :--- | :--- | :--- | :--- |
-| **Quản Trị Viên (Admin)** | `admin` | `AdminPassword@123` | Quản trị tài khoản, cấu hình hệ thống, toàn quyền danh mục |
-| **Cán Bộ Đào Tạo** | `canbo01` | `CanBoPassword@123` | Quản lý danh mục phòng học, môn học, học vụ |
-| **Học Viên / Sinh Viên** | `sinhvien01` | `HocVienPassword@123` | Tra cứu thông tin, xem điểm, lịch học |
+| **Quản Trị Viên (Admin)** | `admin` | `AdminPassword@123` | Toàn quyền hệ thống, phân quyền nhóm, quản trị tài khoản & cán bộ |
+| **Cán Bộ Đào Tạo (Staff)** | `canbo01` | `CanBoPassword@123` | Quản lý danh mục đào tạo, phòng học, hồ sơ học vụ |
+| **Học Viên (Student)** | `sinhvien01` | `HocVienPassword@123` | Tra cứu hồ sơ học viên, xem chương trình học |
 
 ---
 
-## 📁 5. Cấu Trúc Thư Mục Dự Án
+## 🛡️ 5. Chuẩn Mã Lỗi Hệ Thống (Centralized Error Codes)
+Hệ thống sử dụng bảng mã lỗi máy đọc (Machine-Readable Error Codes) tập trung tại `Shared.Common.Constants.ErrorCodes` đồng bộ với `src/constants/errorCodes.ts` ở Frontend:
+- `AUTH_USERNAME_ALREADY_EXISTS`: Tên đăng nhập đã tồn tại.
+- `AUTH_FORBIDDEN_ROLE_ADMIN`: Chặn hành vi cố tình leo thang đặc quyền Admin.
+- `SYS_INTERNAL_ERROR`: Bọc lỗi ngoại lệ an toàn qua `GlobalExceptionMiddleware`.
+
+---
+
+## 📁 6. Cấu Trúc Mã Nguồn
 
 ```text
 QLDaoTao_Microservices/
 ├── backend/
 │   ├── src/
-│   │   ├── Gateways/
-│   │   │   └── ApiGateway/            # YARP Gateway (Port 7000)
+│   │   ├── Gateways/ApiGateway/       # YARP Reverse Proxy Gateway (Port 7000)
 │   │   ├── Services/
-│   │   │   ├── Identity/Identity.API/  # Xác thực & Quản lý User (Port 5001)
-│   │   │   └── Catalog/Catalog.API/    # Danh mục dùng chung (Port 5002)
+│   │   │   ├── Identity/Identity.API/ # Quản lý Tài khoản, Phân quyền, Nhân sự (Port 5001)
+│   │   │   ├── Catalog/Catalog.API/   # Quản lý Danh mục dùng chung (Port 5002)
+│   │   │   └── Storage/Storage.API/   # Dịch vụ Lưu trữ & Upload Tệp tin (Port 5006)
 │   │   ├── Shared/
-│   │   │   ├── Shared.Common/          # Base Entity, DTO, Response, Middleware
-│   │   │   └── Shared.Security/        # JWT Authentication Handler, Policy
-│   │   └── Tools/
-│   │       └── DbInitializer/          # Công cụ Migration & Seed dữ liệu
-│   └── backend.sln
+│   │   │   ├── Shared.Common/         # ApiResponse, ErrorCodes, BaseEntity, Middleware
+│   │   │   └── Shared.Security/       # JWT Token Authentication Handler, Constants
+│   │   └── Tools/DbInitializer/       # Tool Migration & Nạp dữ liệu mẫu
+│   └── QLDaoTao.slnx
 ├── frontend/
-│   ├── package.json                   # Script proxy gọi nhanh admin-portal
-│   └── admin-portal/                  # Cổng Quản Trị React 19 + Ant Design 6.x
-│       ├── src/
-│       │   ├── api/                   # Axios client + Interceptors tự động refresh token
-│       │   ├── components/            # ThemeToggle (☀️/🌙), ProtectedRoute
-│       │   ├── contexts/              # AuthContext, ThemeContext
-│       │   ├── layouts/               # AppLayout (Sidebar, Header, Breadcrumb)
-│       │   ├── pages/                 # LoginPage (Ant Design Pro), RoomsPage, UserManagementPage
-│       │   └── theme/                 # Ant Design Design Tokens (Dark / Light)
-│       └── vite.config.ts             # Cấu hình cổng 3000
-├── .gitignore                         # Loại bỏ bin, obj, node_modules, temp
-└── README.md                          # Tài liệu hướng dẫn sử dụng
+│   ├── package.json                  # Runner script
+│   └── admin-portal/                 # Ứng dụng React + Ant Design 5 (Vite)
+│       └── src/
+│           ├── api/                  # Axios Client + Auto-refresh Token Interceptor
+│           ├── constants/            # ErrorCodes, Banks, Roles
+│           ├── contexts/             # AuthContext, ThemeContext
+│           ├── layouts/              # AppLayout (Sidebar thông minh, Header)
+│           ├── pages/                # Các trang nghiệp vụ (Users, Staff, Student, Rooms...)
+│           └── utils/                # Single Source of Truth (url.ts, formatter.ts)
+└── README.md
 ```
