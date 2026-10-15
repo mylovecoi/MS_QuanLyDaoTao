@@ -16,6 +16,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -41,6 +42,7 @@ import {
 import type { TablePaginationConfig } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { apiClient } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 import { getFullAvatarUrl } from '../../utils/url';
 
 interface UserItem {
@@ -103,6 +105,16 @@ interface ResetPasswordFormValues {
 import { useDebounce } from '../../hooks/useDebounce';
 
 export const UserManagementPage: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role?.toUpperCase() === 'ADMIN';
+
+  // Danh sách vai trò được phép phân quyền: Chỉ Admin mới được tạo/gán quyền Admin
+  const roleSelectOptions = [
+    ...(isAdmin ? [{ label: 'Quản Trị Viên (Admin)', value: 1 }] : []),
+    { label: 'Cán Bộ Đào Tạo', value: 2 },
+    { label: 'Học Viên', value: 3 },
+  ];
+
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -117,11 +129,13 @@ export const UserManagementPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm] = Form.useForm<CreateUserFormValues>();
+  const selectedCreateRole = Form.useWatch('role', createForm);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [editForm] = Form.useForm<UpdateUserFormValues>();
+  const selectedEditRole = Form.useWatch('role', editForm);
 
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -591,14 +605,18 @@ export const UserManagementPage: React.FC = () => {
             label="Phân Quyền Vai Trò"
             rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]}
           >
-            <Select
-              options={[
-                { label: 'Quản Trị Viên (Admin)', value: 1 },
-                { label: 'Cán Bộ Đào Tạo', value: 2 },
-                { label: 'Học Viên', value: 3 },
-              ]}
-            />
+            <Select options={roleSelectOptions} />
           </Form.Item>
+
+          {selectedCreateRole === 1 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Lưu ý đặc quyền Quản trị viên"
+              description="Tài khoản Quản trị viên (Admin) có toàn quyền cấu hình hệ thống, quản lý tài khoản và dữ liệu đào tạo. Hãy đảm bảo cấp phát đúng nhân sự phụ trách."
+            />
+          )}
 
           <div style={{ textAlign: 'right', marginTop: 24 }}>
             <Space>
@@ -641,14 +659,18 @@ export const UserManagementPage: React.FC = () => {
             label="Vai Trò"
             rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]}
           >
-            <Select
-              options={[
-                { label: 'Quản Trị Viên (Admin)', value: 1 },
-                { label: 'Cán Bộ Đào Tạo', value: 2 },
-                { label: 'Học Viên', value: 3 },
-              ]}
-            />
+            <Select options={roleSelectOptions} />
           </Form.Item>
+
+          {selectedEditRole === 1 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Lưu ý đặc quyền Quản trị viên"
+              description="Tài khoản Quản trị viên (Admin) có toàn quyền cấu hình hệ thống, quản lý tài khoản và dữ liệu đào tạo. Hãy đảm bảo cấp phát đúng nhân sự phụ trách."
+            />
+          )}
 
           <div style={{ textAlign: 'right', marginTop: 24 }}>
             <Space>

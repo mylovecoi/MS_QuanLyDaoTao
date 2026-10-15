@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Shared.Common.Constants;
+using Shared.Common.Enums;
 using Shared.Common.Responses;
 using Shared.Security.Constants;
 using System.Security.Claims;
@@ -42,7 +44,18 @@ public class AuthController : ControllerBase
     {
         if (await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower()))
         {
-            return BadRequest(ApiResponse<UserDto>.FailureResult("Tên đăng nhập đã tồn tại trong hệ thống."));
+            return BadRequest(ApiResponse<UserDto>.FailureResult(
+                "Tên đăng nhập đã tồn tại trong hệ thống.",
+                ErrorCodes.AuthUsernameAlreadyExists));
+        }
+
+        // Chống leo thang đặc quyền: Không phải Admin thì không được tạo tài khoản Admin
+        if (request.Role == UserRole.Admin && !User.IsInRole(RoleConstants.Admin))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<UserDto>.FailureResult(
+                    "Bạn không có thẩm quyền tạo tài khoản Quản trị viên (ADMIN).",
+                    ErrorCodes.AuthForbiddenRoleAdmin));
         }
 
         var adminUsername = User.Identity?.Name ?? "ADMIN";

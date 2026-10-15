@@ -35,37 +35,42 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        var (statusCode, message, errors) = exception switch
+        var (statusCode, code, message, errors) = exception switch
         {
             KeyNotFoundException notFound => (
                 StatusCodes.Status404NotFound,
+                Shared.Common.Constants.ErrorCodes.SysNotFound,
                 notFound.Message,
                 new List<string> { notFound.Message }
             ),
             UnauthorizedAccessException unauthorized => (
                 StatusCodes.Status401Unauthorized,
+                Shared.Common.Constants.ErrorCodes.SysUnauthorized,
                 "Bạn không có quyền truy cập hoặc phiên làm việc đã hết hạn.",
                 new List<string> { unauthorized.Message }
             ),
             InvalidOperationException badOp => (
                 StatusCodes.Status400BadRequest,
+                Shared.Common.Constants.ErrorCodes.SysBadRequest,
                 badOp.Message,
                 new List<string> { badOp.Message }
             ),
             ArgumentException argEx => (
                 StatusCodes.Status400BadRequest,
+                Shared.Common.Constants.ErrorCodes.SysBadRequest,
                 argEx.Message,
                 new List<string> { argEx.Message }
             ),
             _ => (
                 StatusCodes.Status500InternalServerError,
+                Shared.Common.Constants.ErrorCodes.SysInternalError,
                 "Đã xảy ra lỗi nội bộ trên hệ thống. Vui lòng liên hệ ban quản trị.",
                 new List<string> { exception.Message }
             )
         };
 
         context.Response.StatusCode = statusCode;
-        var response = ApiResponse<object>.FailureResult(message, errors);
+        var response = ApiResponse<object>.FailureResult(message, code, errors);
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
     }

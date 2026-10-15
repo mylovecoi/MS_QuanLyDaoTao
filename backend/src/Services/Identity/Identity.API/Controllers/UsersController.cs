@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Shared.Common.Constants;
 using Shared.Common.Enums;
 using Shared.Common.Pagination;
 using Shared.Common.Responses;
@@ -118,7 +119,18 @@ public class UsersController : ControllerBase
         var trimmedUsername = request.Username.Trim();
         if (await _context.Users.AnyAsync(u => u.Username.ToLower() == trimmedUsername.ToLower()))
         {
-            return BadRequest(ApiResponse<UserDto>.FailureResult("Tên đăng nhập đã tồn tại trong hệ thống."));
+            return BadRequest(ApiResponse<UserDto>.FailureResult(
+                "Tên đăng nhập đã tồn tại trong hệ thống.",
+                ErrorCodes.AuthUsernameAlreadyExists));
+        }
+
+        // Chống leo thang đặc quyền: Không phải Admin thì không được tạo tài khoản Admin
+        if (request.Role == UserRole.Admin && !User.IsInRole(RoleConstants.Admin))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<UserDto>.FailureResult(
+                    "Bạn không có thẩm quyền tạo tài khoản Quản trị viên (ADMIN).",
+                    ErrorCodes.AuthForbiddenRoleAdmin));
         }
 
         var adminUsername = User.Identity?.Name ?? "ADMIN";
@@ -196,7 +208,19 @@ public class UsersController : ControllerBase
 
         if (user == null)
         {
-            return NotFound(ApiResponse<UserDto>.FailureResult("Không tìm thấy tài khoản để cập nhật."));
+            return NotFound(ApiResponse<UserDto>.FailureResult(
+                "Không tìm thấy tài khoản để cập nhật.",
+                ErrorCodes.AuthUserNotFound));
+        }
+
+        // Chống leo thang đặc quyền (Privilege Escalation)
+        // Nếu user mục tiêu là Admin hoặc request cố gắng thăng hạng lên Admin mà người gọi không phải Admin
+        if ((request.Role == UserRole.Admin || user.Role == UserRole.Admin) && !User.IsInRole(RoleConstants.Admin))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<UserDto>.FailureResult(
+                    "Bạn không có thẩm quyền thao tác hoặc phân quyền Quản trị viên (ADMIN).",
+                    ErrorCodes.AuthForbiddenRoleAdmin));
         }
 
         var adminUsername = User.Identity?.Name ?? "ADMIN";
