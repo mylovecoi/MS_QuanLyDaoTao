@@ -43,6 +43,7 @@ public class AuthResponseDto
     public string FullName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public int RoleId { get; set; }
+    public string? Avatar { get; set; }
 }
 
 public class RefreshTokenRequestDto
@@ -62,6 +63,7 @@ public class UserDto
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string? Email { get; set; }
+    public string? Avatar { get; set; }
     public string Role { get; set; } = string.Empty;
     public int RoleId { get; set; }
     public bool IsActive { get; set; }

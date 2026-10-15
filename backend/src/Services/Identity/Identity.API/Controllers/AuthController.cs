@@ -118,7 +118,8 @@ public class AuthController : ControllerBase
             Username = user.Username,
             FullName = user.FullName,
             Role = user.Role.ToString().ToUpperInvariant(),
-            RoleId = (int)user.Role
+            RoleId = (int)user.Role,
+            Avatar = user.Avatar
         };
 
         return Ok(ApiResponse<AuthResponseDto>.SuccessResult(response, "Đăng nhập thành công."));
@@ -160,7 +161,8 @@ public class AuthController : ControllerBase
             Username = tokenEntity.User.Username,
             FullName = tokenEntity.User.FullName,
             Role = tokenEntity.User.Role.ToString().ToUpperInvariant(),
-            RoleId = (int)tokenEntity.User.Role
+            RoleId = (int)tokenEntity.User.Role,
+            Avatar = tokenEntity.User.Avatar
         };
 
         return Ok(ApiResponse<AuthResponseDto>.SuccessResult(response, "Làm mới Token thành công."));
@@ -210,6 +212,7 @@ public class AuthController : ControllerBase
             Username = user.Username,
             FullName = user.FullName,
             Email = user.Email,
+            Avatar = user.Avatar,
             Role = user.Role.ToString().ToUpperInvariant(),
             RoleId = (int)user.Role,
             IsActive = user.IsActive,

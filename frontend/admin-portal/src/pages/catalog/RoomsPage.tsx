@@ -1,28 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AppstoreOutlined,
+  CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
+  InfoCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import {
+  Badge,
   Button,
   Card,
+  Col,
+  Descriptions,
+  Divider,
+  Drawer,
   Form,
   Input,
   InputNumber,
-  message,
   Modal,
   Popconfirm,
+  Row,
   Select,
   Space,
   Table,
   Tag,
   Tooltip,
   Typography,
+  message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 import { apiClient } from '../../api/client';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface RoomItem {
   id: string;
@@ -45,9 +59,6 @@ interface RoomFormValues {
   notes?: string;
 }
 
-import { useDebounce } from '../../hooks/useDebounce';
-import { SearchOutlined } from '@ant-design/icons';
-
 export const RoomsPage: React.FC = () => {
   const [data, setData] = useState<RoomItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -64,6 +75,10 @@ export const RoomsPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [form] = Form.useForm<RoomFormValues>();
+
+  // Drawer Chi Tiết Phòng Học
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState<boolean>(false);
+  const [selectedRoom, setSelectedRoom] = useState<RoomItem | null>(null);
 
   const fetchRooms = async (
     targetPage = page,
@@ -93,28 +108,20 @@ export const RoomsPage: React.FC = () => {
     }
   };
 
-  // Tự động nhảy về trang 1 khi từ khóa hoặc trạng thái thay đổi
   useEffect(() => {
     setPage(1);
   }, [debouncedKeyword, statusFilter]);
 
-  // Tự động gọi API khi page, pageSize, từ khóa debounced hoặc trạng thái thay đổi
   useEffect(() => {
     fetchRooms(page, pageSize, debouncedKeyword, statusFilter);
   }, [page, pageSize, debouncedKeyword, statusFilter]);
-
-  const handleReset = () => {
-    setPage(1);
-    setKeyword('');
-    setStatusFilter('ALL');
-  };
 
   const openCreateModal = () => {
     setModalMode('create');
     setEditingId(null);
     form.resetFields();
     form.setFieldsValue({
-      status: 1, // Sẵn sàng
+      status: 1,
       capacity: 40,
     });
     setModalOpen(true);
@@ -179,12 +186,12 @@ export const RoomsPage: React.FC = () => {
 
   const getStatusTag = (status: string, statusId?: number) => {
     if (statusId === 1 || status === 'Available') {
-      return <Tag color="success">Sẵn Sàng</Tag>;
+      return <Badge status="success" text={<span style={{ color: '#16A34A', fontWeight: 500 }}>Sẵn Sàng</span>} />;
     }
     if (statusId === 2 || status === 'Maintenance') {
-      return <Tag color="warning">Bảo Trì</Tag>;
+      return <Badge status="warning" text={<span style={{ color: '#D97706', fontWeight: 500 }}>Bảo Trì</span>} />;
     }
-    return <Tag color="error">Tạm Khóa</Tag>;
+    return <Badge status="error" text={<span style={{ color: '#DC2626', fontWeight: 500 }}>Tạm Khóa</span>} />;
   };
 
   const columns: ColumnsType<RoomItem> = [
@@ -192,7 +199,12 @@ export const RoomsPage: React.FC = () => {
       title: 'Tên Phòng',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => <strong>{text}</strong>,
+      render: (text) => (
+        <Space>
+          <AppstoreOutlined style={{ color: '#1E40AF' }} />
+          <Typography.Text strong>{text}</Typography.Text>
+        </Space>
+      ),
     },
     {
       title: 'Địa Chỉ / Khu Nhà',
@@ -203,14 +215,18 @@ export const RoomsPage: React.FC = () => {
       title: 'Sức Chứa',
       dataIndex: 'capacity',
       key: 'capacity',
-      render: (val) => `${val} chỗ`,
+      render: (val) => (
+        <Tag color="blue" icon={<TeamOutlined />}>
+          {val} chỗ
+        </Tag>
+      ),
       sorter: (a, b) => a.capacity - b.capacity,
     },
     {
       title: 'Trang Thiết Bị',
       dataIndex: 'facilities',
       key: 'facilities',
-      render: (text) => text || '—',
+      render: (text) => text || <Typography.Text type="secondary">—</Typography.Text>,
     },
     {
       title: 'Trạng Thái',
@@ -221,17 +237,29 @@ export const RoomsPage: React.FC = () => {
     {
       title: 'Thao Tác',
       key: 'actions',
-      width: 110,
+      width: 140,
       align: 'center',
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="Chỉnh sửa">
+          <Tooltip title="Xem chi tiết phòng học">
+            <Button
+              type="text"
+              icon={<EyeOutlined style={{ color: '#06B6D4' }} />}
+              onClick={() => {
+                setSelectedRoom(record);
+                setDetailDrawerOpen(true);
+              }}
+            />
+          </Tooltip>
+
+          <Tooltip title="Chỉnh sửa thông tin">
             <Button
               type="text"
               icon={<EditOutlined style={{ color: '#1E40AF' }} />}
               onClick={() => openEditModal(record)}
             />
           </Tooltip>
+
           <Popconfirm
             title="Xác nhận xóa?"
             description={`Bạn có chắc muốn xóa phòng ${record.name}?`}
@@ -253,67 +281,83 @@ export const RoomsPage: React.FC = () => {
   ];
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      {/* TẦNG 1: Page Header */}
-      <div
+    <div>
+      {/* CARD 1: Header Tiêu Chuẩn Kiến Trúc 3-Card */}
+      <Card
+        bordered={false}
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
+          borderRadius: 12,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          marginBottom: 16,
         }}
       >
-        <div>
-          <Typography.Title level={4} style={{ margin: 0, fontWeight: 700 }}>
-            Quản Lý Phòng Học
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            Quản lý danh mục cơ sở vật chất, phòng học lý thuyết và phòng thực hành
-          </Typography.Text>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="middle"
-          onClick={openCreateModal}
-          style={{ background: '#1E40AF' }}
-        >
-          Thêm Phòng Mới
-        </Button>
-      </div>
-
-      {/* TẦNG 2: Search & Filter Card */}
-      <Card size="small" style={{ borderRadius: 10 }}>
-        <Space wrap style={{ width: '100%' }}>
-          <Input
-            placeholder="Tìm nhanh theo tên phòng, địa chỉ..."
-            prefix={<SearchOutlined style={{ color: '#9CA3AF' }} />}
-            allowClear
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            style={{ width: 280 }}
-          />
-          <Select
-            placeholder="Lọc theo trạng thái"
-            value={statusFilter}
-            style={{ width: 180 }}
-            options={[
-              { label: 'Tất cả trạng thái', value: 'ALL' },
-              { label: 'Sẵn Sàng', value: 1 },
-              { label: 'Bảo Trì', value: 2 },
-              { label: 'Tạm Khóa', value: 3 },
-            ]}
-            onChange={(val) => setStatusFilter(val)}
-          />
-          <Button icon={<ReloadOutlined />} onClick={handleReset}>
-            Làm mới
-          </Button>
-        </Space>
+        <Row justify="space-between" align="middle" gutter={[16, 16]}>
+          <Col xs={24} md={14}>
+            <Typography.Title level={3} style={{ margin: 0, fontWeight: 700, color: '#0F172A' }}>
+              Quản Lý Phòng Học & Cơ Sở Vật Chất
+            </Typography.Title>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              Danh mục phòng học lý thuyết, thực hành máy tính và kiểm soát sức chứa, thiết bị
+            </Typography.Text>
+          </Col>
+          <Col xs={24} md={10} style={{ textAlign: 'right' }}>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchRooms()}>
+                Làm mới
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                Thêm Phòng Mới
+              </Button>
+            </Space>
+          </Col>
+        </Row>
       </Card>
 
-      {/* TẦNG 3: Data Table */}
-      <Card style={{ borderRadius: 10, padding: 0 }} styles={{ body: { padding: 0 } }}>
+      {/* CARD 2: Filter Card Độc Lập */}
+      <Card
+        bordered={false}
+        style={{
+          borderRadius: 12,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          marginBottom: 16,
+        }}
+      >
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={14} md={10}>
+            <Input
+              placeholder="Tìm nhanh theo tên phòng, địa chỉ..."
+              prefix={<SearchOutlined style={{ color: '#9CA3AF' }} />}
+              allowClear
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </Col>
+          <Col xs={12} sm={8} md={6}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Lọc theo trạng thái"
+              value={statusFilter}
+              options={[
+                { label: 'Tất cả trạng thái', value: 'ALL' },
+                { label: 'Sẵn Sàng', value: 1 },
+                { label: 'Bảo Trì', value: 2 },
+                { label: 'Tạm Khóa', value: 3 },
+              ]}
+              onChange={(val) => setStatusFilter(val)}
+            />
+          </Col>
+        </Row>
+      </Card>
+
+      {/* CARD 3: Table Card Tràn Viền */}
+      <Card
+        bordered={false}
+        style={{
+          borderRadius: 12,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        }}
+        styles={{ body: { padding: 0 } }}
+      >
         <Table<RoomItem>
           rowKey="id"
           columns={columns}
@@ -325,7 +369,7 @@ export const RoomsPage: React.FC = () => {
             total: totalCount,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
-            showTotal: (total) => `Tổng số: ${total} phòng học`,
+            showTotal: (total) => `Tổng cộng ${total} phòng học`,
             onChange: (p, ps) => {
               setPage(p);
               setPageSize(ps);
@@ -334,10 +378,15 @@ export const RoomsPage: React.FC = () => {
         />
       </Card>
 
-      {/* TẦNG 4: Modal Form Nhập Liệu */}
+      {/* Modal Form Nhập Liệu Tạo / Sửa */}
       <Modal
         open={modalOpen}
-        title={modalMode === 'create' ? '🏢 Thêm Phòng Học Mới' : '✏️ Chỉnh Sửa Phòng Học'}
+        title={
+          <Space>
+            <AppstoreOutlined style={{ color: '#1E40AF' }} />
+            <span>{modalMode === 'create' ? 'Thêm Phòng Học Mới' : 'Chỉnh Sửa Phòng Học'}</span>
+          </Space>
+        }
         okText={modalMode === 'create' ? 'Tạo mới' : 'Lưu thay đổi'}
         cancelText="Hủy bỏ"
         onOk={form.submit}
@@ -360,38 +409,41 @@ export const RoomsPage: React.FC = () => {
 
           <Form.Item
             name="address"
-            label="Địa Chỉ / Tòa Nhà"
+            label="Địa Chỉ / Khu Nhà"
             rules={[{ required: true, message: 'Vui lòng nhập vị trí hoặc tòa nhà!' }]}
           >
             <Input placeholder="Ví dụ: Tòa H1 - Cơ sở 1, Tầng 3 Tòa B" />
           </Form.Item>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item
-              name="capacity"
-              label="Sức Chứa (Người)"
-              rules={[
-                { required: true, message: 'Vui lòng nhập sức chứa!' },
-                { type: 'number', min: 1, max: 1000, message: 'Từ 1 đến 1000 chỗ ngồi' },
-              ]}
-            >
-              <InputNumber style={{ width: '100%' }} placeholder="40" />
-            </Form.Item>
-
-            <Form.Item
-              name="status"
-              label="Trạng Thái Hoạt Động"
-              rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]}
-            >
-              <Select
-                options={[
-                  { label: 'Sẵn Sàng', value: 1 },
-                  { label: 'Bảo Trì', value: 2 },
-                  { label: 'Tạm Khóa', value: 3 },
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="capacity"
+                label="Sức Chứa (Chỗ ngồi)"
+                rules={[
+                  { required: true, message: 'Vui lòng nhập sức chứa!' },
+                  { type: 'number', min: 1, max: 1000, message: 'Từ 1 đến 1000 chỗ' },
                 ]}
-              />
-            </Form.Item>
-          </div>
+              >
+                <InputNumber style={{ width: '100%' }} placeholder="40" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="status"
+                label="Trạng Thái Hoạt Động"
+                rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]}
+              >
+                <Select
+                  options={[
+                    { label: 'Sẵn Sàng', value: 1 },
+                    { label: 'Bảo Trì', value: 2 },
+                    { label: 'Tạm Khóa', value: 3 },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item name="facilities" label="Trang Thiết Bị Sẵn Có">
             <Input placeholder="Ví dụ: Máy chiếu, Điều hòa 2 chiều, 45 máy tính i5" />
@@ -402,6 +454,114 @@ export const RoomsPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Space>
+
+      {/* Drawer Xem Chi Tiết Phòng Học */}
+      <Drawer
+        title={
+          <Space>
+            <InfoCircleOutlined style={{ color: '#06B6D4' }} />
+            <span>Chi Tiết Phòng Học</span>
+          </Space>
+        }
+        width={580}
+        open={detailDrawerOpen}
+        onClose={() => setDetailDrawerOpen(false)}
+        extra={
+          selectedRoom && (
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setDetailDrawerOpen(false);
+                openEditModal(selectedRoom);
+              }}
+            >
+              Chỉnh Sửa
+            </Button>
+          )
+        }
+      >
+        {selectedRoom && (
+          <div>
+            {/* Header phòng học */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                padding: '16px 20px',
+                background: '#F8FAFC',
+                borderRadius: 12,
+                border: '1px solid #E2E8F0',
+                marginBottom: 20,
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: 'rgba(30, 64, 175, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppstoreOutlined style={{ fontSize: 28, color: '#1E40AF' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Typography.Title level={4} style={{ margin: 0 }}>
+                    {selectedRoom.name}
+                  </Typography.Title>
+                  {getStatusTag(selectedRoom.status, selectedRoom.statusId)}
+                </div>
+                <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                  {selectedRoom.address}
+                </Typography.Text>
+              </div>
+            </div>
+
+            {/* Thông số kỹ thuật */}
+            <Typography.Text strong style={{ fontSize: 14, color: '#334155', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <CheckCircleOutlined style={{ color: '#16A34A' }} /> Thông Tin Cơ Sở Vật Chất
+            </Typography.Text>
+            <Descriptions
+              bordered
+              size="small"
+              column={1}
+              labelStyle={{ width: 170, fontWeight: 500, background: '#F8FAFC', color: '#475569' }}
+            >
+              <Descriptions.Item label="Tên phòng học">
+                <Typography.Text strong>{selectedRoom.name}</Typography.Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Vị trí / Tòa nhà">
+                {selectedRoom.address}
+              </Descriptions.Item>
+              <Descriptions.Item label="Sức chứa tối đa">
+                <Tag color="blue" icon={<TeamOutlined />}>
+                  {selectedRoom.capacity} chỗ ngồi
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Trạng thái hiện tại">
+                {getStatusTag(selectedRoom.status, selectedRoom.statusId)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Trang thiết bị đào tạo">
+                {selectedRoom.facilities || <Typography.Text type="secondary">Chưa cập nhật trang thiết bị</Typography.Text>}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ghi chú quản lý">
+                {selectedRoom.notes || <Typography.Text type="secondary">Không có ghi chú</Typography.Text>}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày khởi tạo">
+                {selectedRoom.createdAt ? dayjs(selectedRoom.createdAt).format('DD/MM/YYYY HH:mm') : '—'}
+              </Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
+      </Drawer>
+    </div>
   );
 };
+
+export default RoomsPage;
+

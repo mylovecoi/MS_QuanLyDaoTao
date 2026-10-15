@@ -56,6 +56,11 @@ builder.Services.AddAuthorization();
 // 3. DI Services
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IStaffService, StaffService>();
+builder.Services.AddScoped<IStudentService, StudentService>();
+builder.Services.AddScoped<IMenuService, MenuService>();
+builder.Services.AddScoped<IPermissionGroupService, PermissionGroupService>();
 
 builder.Services.AddControllers();
 

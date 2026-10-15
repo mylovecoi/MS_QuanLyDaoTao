@@ -7,6 +7,7 @@ export interface UserInfo {
   fullName: string;
   role: 'ADMIN' | 'CANBO' | 'HOCVIEN' | string;
   roleId: number;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (accessToken: string, refreshToken: string, userInfo: UserInfo) => void;
   logout: () => Promise<void>;
+  updateUserAvatar: (avatarUrl: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: () => {},
   logout: async () => {},
+  updateUserAvatar: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -52,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             fullName: u.fullName,
             role: u.role,
             roleId: u.roleId,
+            avatarUrl: u.avatar || u.avatarUrl,
           };
           setUser(updated);
           localStorage.setItem('user_info', JSON.stringify(updated));
@@ -72,6 +76,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('refresh_token', refreshToken);
     localStorage.setItem('user_info', JSON.stringify(userInfo));
     setUser(userInfo);
+  };
+
+  const updateUserAvatar = (avatarUrl: string) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, avatarUrl };
+      localStorage.setItem('user_info', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const logout = async () => {
@@ -97,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         logout,
+        updateUserAvatar,
       }}
     >
       {children}

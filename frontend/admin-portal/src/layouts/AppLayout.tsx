@@ -1,15 +1,27 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   AppstoreOutlined,
+  AuditOutlined,
   BankOutlined,
   BookOutlined,
   CalendarOutlined,
+  CheckCircleOutlined,
+  ClusterOutlined,
   DashboardOutlined,
   FileDoneOutlined,
+  FileTextOutlined,
+  FolderOutlined,
+  IdcardOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  NotificationOutlined,
+  ReadOutlined,
+  SafetyCertificateOutlined,
+  ScheduleOutlined,
+  SettingOutlined,
   TeamOutlined,
+  TrophyOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import {
@@ -22,6 +34,7 @@ import {
   Space,
   Tag,
   theme,
+  Tooltip,
   Typography,
 } from 'antd';
 import type { MenuProps } from 'antd';
@@ -29,91 +42,124 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { apiClient } from '../api/client';
 
 const { Header, Sider, Content } = Layout;
 
+interface BackendMenuItem {
+  id: string;
+  code: string;
+  title: string;
+  path: string | null;
+  icon: string | null;
+  parentId: string | null;
+  type: number; // 1: Group, 2: Item
+  sortOrder: number;
+  isActive: boolean;
+  children?: BackendMenuItem[];
+}
+
 export const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [menuTree, setMenuTree] = useState<BackendMenuItem[]>([]);
   const { user, logout } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = theme.useToken();
 
-  const menuItems: MenuProps['items'] = [
-    {
-      key: '/',
-      icon: <DashboardOutlined />,
-      label: 'Tổng Quan',
-    },
-    {
-      key: 'sub-catalog',
-      icon: <AppstoreOutlined />,
-      label: 'Danh Mục Dùng Chung',
-      children: [
-        {
-          key: '/rooms',
-          icon: <BankOutlined />,
-          label: 'Quản Lý Phòng Học',
-        },
-        {
-          key: '/subjects',
-          icon: <BookOutlined />,
-          label: 'Quản Lý Môn Học',
-        },
-        {
-          key: '/courses',
-          icon: <CalendarOutlined />,
-          label: 'Khóa Học & Niên Khóa',
-        },
-      ],
-    },
-    {
-      key: 'sub-academic',
-      icon: <TeamOutlined />,
-      label: 'Quản Lý Học Vụ',
-      children: [
-        {
-          key: '/classes',
-          label: 'Danh Sách Lớp Học',
-        },
-        {
-          key: '/curriculums',
-          label: 'Khung Chương Trình',
-        },
-      ],
-    },
-    {
-      key: 'sub-grading',
-      icon: <FileDoneOutlined />,
-      label: 'Khảo Thí & Đánh Giá',
-      children: [
-        {
-          key: '/attendances',
-          label: 'Điểm Danh Sinh Viên',
-        },
-        {
-          key: '/grades',
-          label: 'Bảng Điểm Môn Học',
-        },
-      ],
-    },
-    {
-      key: '/users',
-      icon: <UserOutlined />,
-      label: 'Quản Lý Tài Khoản',
-    },
-  ];
+  // Helper render Icon Antd động từ chuỗi lưu trong Database
+  const renderDynamicIcon = (iconName?: string | null) => {
+    switch (iconName) {
+      case 'DashboardOutlined': return <DashboardOutlined />;
+      case 'BankOutlined': return <BankOutlined />;
+      case 'BookOutlined': return <BookOutlined />;
+      case 'TeamOutlined': return <TeamOutlined />;
+      case 'ReadOutlined': return <ReadOutlined />;
+      case 'UserOutlined': return <UserOutlined />;
+      case 'CalendarOutlined': return <CalendarOutlined />;
+      case 'ClusterOutlined': return <ClusterOutlined />;
+      case 'ScheduleOutlined': return <ScheduleOutlined />;
+      case 'TrophyOutlined': return <TrophyOutlined />;
+      case 'CheckCircleOutlined': return <CheckCircleOutlined />;
+      case 'FileTextOutlined': return <FileTextOutlined />;
+      case 'AuditOutlined': return <AuditOutlined />;
+      case 'SafetyCertificateOutlined': return <SafetyCertificateOutlined />;
+      case 'AppstoreOutlined': return <AppstoreOutlined />;
+      case 'FolderOutlined': return <FolderOutlined />;
+      case 'SettingOutlined': return <SettingOutlined />;
+      case 'NotificationOutlined': return <NotificationOutlined />;
+      case 'IdcardOutlined': return <IdcardOutlined />;
+      case 'FileDoneOutlined': return <FileDoneOutlined />;
+      default: return <AppstoreOutlined />;
+    }
+  };
+
+  // Tải Cây Menu Phân Quyền Động từ Backend theo User đang đăng nhập
+  const fetchMenuTree = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/api/auth/menus/my-permissions');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setMenuTree(res.data.data);
+      }
+    } catch {
+      // Fallback nếu mạng lỗi
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMenuTree();
+
+    // Lắng nghe sự kiện menu được cập nhật từ MenuManagementPage để làm mới ngay lập tức
+    const handleMenuUpdated = () => {
+      fetchMenuTree();
+    };
+    window.addEventListener('app:menu-updated', handleMenuUpdated);
+    return () => {
+      window.removeEventListener('app:menu-updated', handleMenuUpdated);
+    };
+  }, [fetchMenuTree]);
+
+  // Chuyển đổi Cây Menu Backend sang cấu trúc MenuProps['items'] của Ant Design
+  const transformToAntdMenuItems = (items: BackendMenuItem[]): MenuProps['items'] => {
+    return items
+      .filter((item) => item.isActive !== false)
+      .map((item) => {
+        const rawChildren = item.children && item.children.length > 0 ? item.children : [];
+        const activeChildren = rawChildren.filter((c) => c.isActive !== false);
+        const hasChildren = activeChildren.length > 0;
+
+        // Nếu là Nhóm cha (type === 1 hoặc không có đường dẫn path) mà không có con nào được xem thì ẩn luôn nhóm cha
+        const isGroup = item.type === 1 || !item.path;
+        if (isGroup && !hasChildren) {
+          return null;
+        }
+
+        const key = item.path || `sub-${item.id}`;
+        return {
+          key,
+          icon: renderDynamicIcon(item.icon),
+          label: item.title,
+          children: hasChildren ? transformToAntdMenuItems(activeChildren) : undefined,
+        };
+      })
+      .filter(Boolean) as MenuProps['items'];
+  };
+
+  const dynamicMenuItems = transformToAntdMenuItems(menuTree);
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
-    navigate(e.key);
+    if (e.key && !e.key.startsWith('sub-')) {
+      navigate(e.key);
+    }
   };
 
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: 'Hồ sơ cá nhân',
+      label: 'Hồ sơ cá nhân & Cài đặt',
+      onClick: () => navigate('/account/settings'),
     },
     {
       type: 'divider',
@@ -127,6 +173,26 @@ export const AppLayout: React.FC = () => {
     },
   ];
 
+  // Breadcrumb ĐỘNG 100%: Tự động tra cứu theo URL từ Cây Menu trong Database (Không fix cứng switch-case)
+  const getBreadcrumbTitle = () => {
+    if (location.pathname === '/account/settings') return 'Hồ sơ cá nhân & Cài đặt';
+
+    const searchTitle = (items: BackendMenuItem[]): string | null => {
+      for (const item of items) {
+        if (item.path === location.pathname) {
+          return item.title;
+        }
+        if (item.children && item.children.length > 0) {
+          const found = searchTitle(item.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    return searchTitle(menuTree) || location.pathname;
+  };
+
   const getRoleBadge = (role?: string) => {
     switch (role?.toUpperCase()) {
       case 'ADMIN':
@@ -138,6 +204,54 @@ export const AppLayout: React.FC = () => {
       default:
         return <Tag color="default">{role}</Tag>;
     }
+  };
+
+  // Tìm tất cả Submenu cha chứa URL hiện tại
+  const findParentKeys = useCallback((items: BackendMenuItem[], currentPath: string): string[] => {
+    const parentKeys: string[] = [];
+    const traverse = (list: BackendMenuItem[], parents: string[]) => {
+      for (const item of list) {
+        const itemKey = item.path || `sub-${item.id}`;
+        if (item.path === currentPath) {
+          parentKeys.push(...parents);
+          return;
+        }
+        if (item.children && item.children.length > 0) {
+          traverse(item.children, [...parents, itemKey]);
+        }
+      }
+    };
+    traverse(items, []);
+    return parentKeys;
+  }, []);
+
+  // Quản lý trạng thái mở rộng Menu, khởi tạo từ localStorage
+  const [openKeys, setOpenKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('admin_sidebar_open_keys');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Tự động mở rộng Submenu chứa trang hiện tại khi F5 hoặc chuyển link
+  useEffect(() => {
+    if (menuTree.length > 0 && location.pathname) {
+      const activeParents = findParentKeys(menuTree, location.pathname);
+      if (activeParents.length > 0) {
+        setOpenKeys((prev) => {
+          const merged = Array.from(new Set([...prev, ...activeParents]));
+          localStorage.setItem('admin_sidebar_open_keys', JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }
+  }, [menuTree, location.pathname, findParentKeys]);
+
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys);
+    localStorage.setItem('admin_sidebar_open_keys', JSON.stringify(keys));
   };
 
   return (
@@ -215,8 +329,9 @@ export const AppLayout: React.FC = () => {
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['sub-catalog']}
-          items={menuItems}
+          openKeys={collapsed ? [] : openKeys}
+          onOpenChange={handleOpenChange}
+          items={dynamicMenuItems}
           onClick={handleMenuClick}
           style={{
             background: 'transparent',
@@ -250,21 +365,22 @@ export const AppLayout: React.FC = () => {
             <Breadcrumb
               items={[
                 { title: 'Trang chủ' },
-                {
-                  title:
-                    location.pathname === '/'
-                      ? 'Tổng quan'
-                      : location.pathname === '/rooms'
-                      ? 'Quản lý phòng học'
-                      : location.pathname === '/users'
-                      ? 'Quản lý tài khoản'
-                      : location.pathname,
-                },
+                { title: getBreadcrumbTitle() },
               ]}
             />
           </Space>
 
-          <Space size="large" align="center">
+          <Space size="middle" align="center">
+            {/* Lối tắt Cài đặt hệ thống & Quản trị Menu (Khẩn cấp, chống Lockout) */}
+            <Tooltip>
+              <Button
+                type="text"
+                shape="circle"
+                icon={<SettingOutlined style={{ fontSize: 18, color: '#F59E0B' }} />}
+                onClick={() => navigate('/system/menus')}
+              />
+            </Tooltip>
+
             {/* Chuyển đổi Dark / Light Mode (Mặt trời / Mặt trăng) */}
             <ThemeToggle />
 
@@ -277,6 +393,13 @@ export const AppLayout: React.FC = () => {
                     verticalAlign: 'middle',
                   }}
                   icon={<UserOutlined />}
+                  src={
+                    user?.avatarUrl
+                      ? (user.avatarUrl.startsWith('http')
+                          ? user.avatarUrl
+                          : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}${user.avatarUrl}`)
+                      : undefined
+                  }
                 >
                   {user?.fullName?.charAt(0) || 'A'}
                 </Avatar>

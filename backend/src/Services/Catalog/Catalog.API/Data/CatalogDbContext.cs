@@ -1,5 +1,6 @@
 using Catalog.API.Entities;
 using Microsoft.EntityFrameworkCore;
+using Shared.Common.Entities;
 
 namespace Catalog.API.Data;
 
@@ -14,6 +15,17 @@ public class CatalogDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Tự động cấu hình ValueGeneratedOnAdd() cho tất cả các Entity kế thừa BaseEntity
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                modelBuilder.Entity(entityType.ClrType)
+                    .Property(nameof(BaseEntity.Id))
+                    .ValueGeneratedOnAdd();
+            }
+        }
 
         modelBuilder.Entity<Room>(entity =>
         {

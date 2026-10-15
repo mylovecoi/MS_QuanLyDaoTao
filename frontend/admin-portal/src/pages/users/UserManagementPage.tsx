@@ -1,21 +1,29 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  BankOutlined,
   CheckCircleOutlined,
   EditOutlined,
+  EyeOutlined,
+  IdcardOutlined,
   KeyOutlined,
   LockOutlined,
   MailOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   SearchOutlined,
   StopOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
   Col,
+  Descriptions,
+  Divider,
+  Drawer,
   Form,
   Input,
   Modal,
@@ -23,6 +31,7 @@ import {
   Row,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -32,6 +41,7 @@ import {
 import type { TablePaginationConfig } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { apiClient } from '../../api/client';
+import { getFullAvatarUrl } from '../../utils/url';
 
 interface UserItem {
   id: string;
@@ -42,6 +52,34 @@ interface UserItem {
   roleId: number;
   isActive: boolean;
   createdAt: string;
+}
+
+interface UserProfileDetail {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string | null;
+  phoneNumber: string | null;
+  role: string | number;
+  roleName?: string;
+  avatar?: string | null;
+  avatarUrl?: string | null;
+  staffCode?: string | null;
+  staffInfo?: { staffCode?: string };
+  departmentName?: string | null;
+  position?: string | null;
+  positionName?: string | null;
+  permissionGroupId?: string | null;
+  permissionGroupName?: string | null;
+  studentCode?: string | null;
+  studentInfo?: { studentCode?: string };
+  citizenId?: string | null;
+  bankAccount?: string | null;
+  bankName?: string | null;
+  socialInsuranceNumber?: string | null;
+  socialInsuranceCode?: string | null;
+  healthInsuranceNumber?: string | null;
+  healthInsuranceCode?: string | null;
 }
 
 interface CreateUserFormValues {
@@ -90,6 +128,12 @@ export const UserManagementPage: React.FC = () => {
   const [resettingUser, setResettingUser] = useState<UserItem | null>(null);
   const [resetForm] = Form.useForm<ResetPasswordFormValues>();
 
+  // Drawer Xem chi tiết 360 độ
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfileDetail | null>(null);
+  const [selectedUserForDetail, setSelectedUserForDetail] = useState<UserItem | null>(null);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -136,17 +180,26 @@ export const UserManagementPage: React.FC = () => {
     if (pagination.pageSize) setPageSize(pagination.pageSize);
   };
 
-  // Role Badge helper
-  const renderRoleTag = (role: string) => {
-    switch (role?.toUpperCase()) {
+  // Role Badge helper - Xử lý an toàn cả string lẫn number
+  const renderRoleTag = (role: string | number | undefined | null) => {
+    let roleStr = '';
+    if (typeof role === 'number') {
+      roleStr = role === 1 ? 'ADMIN' : role === 2 ? 'STAFF' : role === 3 ? 'STUDENT' : String(role);
+    } else if (typeof role === 'string') {
+      roleStr = role;
+    }
+
+    switch (roleStr.toUpperCase()) {
       case 'ADMIN':
         return <Tag color="blue">Quản Trị Viên</Tag>;
+      case 'STAFF':
       case 'CANBO':
         return <Tag color="green">Cán Bộ Đào Tạo</Tag>;
+      case 'STUDENT':
       case 'HOCVIEN':
         return <Tag color="purple">Học Viên</Tag>;
       default:
-        return <Tag color="default">{role}</Tag>;
+        return <Tag color="default">{roleStr || 'Chưa phân vai trò'}</Tag>;
     }
   };
 
@@ -246,6 +299,25 @@ export const UserManagementPage: React.FC = () => {
     }
   };
 
+  // Open 360 Detail Drawer
+  const handleOpenDetail = async (user: UserItem) => {
+    setSelectedUserForDetail(user);
+    setDetailDrawerOpen(true);
+    setDetailLoading(true);
+    try {
+      const res = await apiClient.get(`/api/auth/profile/user/${user.id}`);
+      if (res.data?.success) {
+        setUserProfile(res.data.data);
+      } else {
+        message.error(res.data?.message || 'Không thể tải chi tiết hồ sơ');
+      }
+    } catch {
+      message.error('Lỗi khi tải thông tin hồ sơ tài khoản');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const columns = [
     {
       title: 'Tên Đăng Nhập',
@@ -305,6 +377,14 @@ export const UserManagementPage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: UserItem) => (
         <Space size="small">
+          <Tooltip title="Xem chi tiết 360°">
+            <Button
+              type="text"
+              icon={<EyeOutlined style={{ color: '#06B6D4' }} />}
+              onClick={() => handleOpenDetail(record)}
+            />
+          </Tooltip>
+
           <Tooltip title="Chỉnh sửa thông tin">
             <Button
               type="text"
@@ -356,7 +436,7 @@ export const UserManagementPage: React.FC = () => {
               Quản Lý Tài Khoản
             </Typography.Title>
             <Typography.Paragraph type="secondary" style={{ margin: '4px 0 0' }}>
-              Quản trị người dùng, phân quyền truy cập hệ thống theo mô hình Microservices
+              Quản trị người dùng, phân quyền truy cập hệ thống
             </Typography.Paragraph>
           </Col>
           <Col xs={24} md={12} style={{ textAlign: 'right' }}>
@@ -384,7 +464,7 @@ export const UserManagementPage: React.FC = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={10} md={8}>
             <Input
-              placeholder="Tìm theo tên đăng nhập, họ tên, email..."
+              placeholder="Tìm kiếm theo tên đăng nhập, họ tên, email..."
               prefix={<SearchOutlined />}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -434,7 +514,14 @@ export const UserManagementPage: React.FC = () => {
       </Card>
 
       {/* Main Table */}
-      <Card>
+      <Card
+        variant="borderless"
+        style={{
+          borderRadius: 12,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        }}
+        styles={{ body: { padding: 0 } }}
+      >
         <Table
           rowKey="id"
           columns={columns}
@@ -458,7 +545,7 @@ export const UserManagementPage: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateSubmit} initialValues={{ role: 3 }}>
           <Form.Item
@@ -530,7 +617,7 @@ export const UserManagementPage: React.FC = () => {
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={editForm} layout="vertical" onFinish={handleEditSubmit}>
           <Form.Item
@@ -580,7 +667,7 @@ export const UserManagementPage: React.FC = () => {
         open={resetModalOpen}
         onCancel={() => setResetModalOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={resetForm} layout="vertical" onFinish={handleResetSubmit}>
           <Form.Item
@@ -604,6 +691,201 @@ export const UserManagementPage: React.FC = () => {
           </div>
         </Form>
       </Modal>
+
+      {/* Drawer Xem Chi Tiết Tài Khoản 360 Độ */}
+      <Drawer
+        title={
+          <Space>
+            <UserOutlined style={{ color: '#2563EB' }} />
+            <span>Hồ Sơ Tài Khoản 360°</span>
+          </Space>
+        }
+        width={680}
+        open={detailDrawerOpen}
+        onClose={() => setDetailDrawerOpen(false)}
+        extra={
+          selectedUserForDetail && (
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setDetailDrawerOpen(false);
+                handleOpenEdit(selectedUserForDetail);
+              }}
+            >
+              Chỉnh Sửa
+            </Button>
+          )
+        }
+      >
+        <Spin spinning={detailLoading}>
+          {userProfile && (
+            <div>
+              {/* Header Profile */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: '18px 20px',
+                  background: '#F8FAFC',
+                  borderRadius: 12,
+                  border: '1px solid #E2E8F0',
+                  marginBottom: 20,
+                }}
+              >
+                <Avatar
+                  size={68}
+                  src={getFullAvatarUrl(userProfile.avatar || userProfile.avatarUrl)}
+                  icon={!(userProfile.avatar || userProfile.avatarUrl) && <UserOutlined />}
+                  style={{ backgroundColor: '#2563EB', fontSize: 28 }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Typography.Title level={4} style={{ margin: 0 }}>
+                      {userProfile.fullName}
+                    </Typography.Title>
+                    {renderRoleTag(userProfile.roleName || userProfile.role)}
+                    {(userProfile.staffCode || userProfile.staffInfo?.staffCode) && (
+                      <Tag color="blue">{userProfile.staffCode || userProfile.staffInfo?.staffCode}</Tag>
+                    )}
+                    {(userProfile.studentCode || userProfile.studentInfo?.studentCode) && (
+                      <Tag color="cyan">{userProfile.studentCode || userProfile.studentInfo?.studentCode}</Tag>
+                    )}
+                  </div>
+                  <Space size="middle" wrap>
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      @{userProfile.username}
+                    </Typography.Text>
+                    {selectedUserForDetail?.isActive ? (
+                      <Badge status="success" text={<span style={{ color: '#16A34A', fontSize: 13 }}>Hoạt động</span>} />
+                    ) : (
+                      <Badge status="error" text={<span style={{ color: '#DC2626', fontSize: 13 }}>Đã khóa</span>} />
+                    )}
+                    {userProfile.permissionGroupName && (
+                      <Tag color="purple" icon={<SafetyCertificateOutlined />}>
+                        {userProfile.permissionGroupName}
+                      </Tag>
+                    )}
+                  </Space>
+                </div>
+              </div>
+
+              {/* Khối 1: Thông tin hệ thống & Liên hệ */}
+              <Typography.Text strong style={{ fontSize: 14, color: '#334155', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                <UserOutlined style={{ color: '#2563EB' }} /> 1. Thông Tin Hệ Thống & Nghiệp Vụ
+              </Typography.Text>
+              <Descriptions
+                bordered
+                size="small"
+                column={1}
+                style={{ marginBottom: 20 }}
+                styles={{ label: { width: 170, fontWeight: 500, background: '#F8FAFC', color: '#475569' } }}
+              >
+                {/* Ưu tiên Mã định danh nghiệp vụ Cán bộ / Học viên */}
+                {(userProfile.staffCode || userProfile.staffInfo?.staffCode) && (
+                  <Descriptions.Item label="Mã Cán Bộ">
+                    <Tag color="blue" style={{ fontSize: 13, fontWeight: 600, padding: '2px 8px' }}>
+                      {userProfile.staffCode || userProfile.staffInfo?.staffCode}
+                    </Tag>
+                  </Descriptions.Item>
+                )}
+                {(userProfile.studentCode || userProfile.studentInfo?.studentCode) && (
+                  <Descriptions.Item label="Mã Học Viên">
+                    <Tag color="cyan" style={{ fontSize: 13, fontWeight: 600, padding: '2px 8px' }}>
+                      {userProfile.studentCode || userProfile.studentInfo?.studentCode}
+                    </Tag>
+                  </Descriptions.Item>
+                )}
+
+                <Descriptions.Item label="Tên đăng nhập">
+                  <Typography.Text strong>@{userProfile.username}</Typography.Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="Vai trò hệ thống">
+                  {renderRoleTag(userProfile.roleName || userProfile.role)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Địa chỉ Email">
+                  {userProfile.email || <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>}
+                </Descriptions.Item>
+                <Descriptions.Item label="Số điện thoại">
+                  {userProfile.phoneNumber || <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>}
+                </Descriptions.Item>
+                <Descriptions.Item label="Phòng ban / Bộ môn">
+                  {userProfile.departmentName || <Typography.Text type="secondary">Chưa thiết lập</Typography.Text>}
+                </Descriptions.Item>
+                <Descriptions.Item label="Chức vụ công tác">
+                  {userProfile.positionName || userProfile.position || <Typography.Text type="secondary">Chưa thiết lập</Typography.Text>}
+                </Descriptions.Item>
+                <Descriptions.Item label="Nhóm phân quyền">
+                  {userProfile.permissionGroupName ? (
+                    <Tag color="purple">{userProfile.permissionGroupName}</Tag>
+                  ) : (
+                    <Typography.Text type="secondary">Mặc định theo vai trò</Typography.Text>
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Divider style={{ margin: '16px 0' }} />
+
+              {/* Khối 2: Định danh & Ngân hàng / Bảo hiểm */}
+              <Typography.Text strong style={{ fontSize: 14, color: '#334155', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                <IdcardOutlined style={{ color: '#06B6D4' }} /> 2. Định Danh & Tài Khoản Ngân Hàng / Bảo Hiểm
+              </Typography.Text>
+              <Descriptions
+                bordered
+                size="small"
+                column={1}
+                styles={{ label: { width: 170, fontWeight: 500, background: '#F8FAFC', color: '#475569' } }}
+              >
+                <Descriptions.Item label="Số CCCD / CMND">
+                  {userProfile.citizenId ? (
+                    <Tag color="geekblue" style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                      {userProfile.citizenId}
+                    </Tag>
+                  ) : (
+                    <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Số tài khoản NH">
+                  {userProfile.bankAccount ? (
+                    <Typography.Text strong style={{ fontFamily: 'monospace', color: '#0F172A' }}>
+                      {userProfile.bankAccount}
+                    </Typography.Text>
+                  ) : (
+                    <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngân hàng">
+                  {userProfile.bankName ? (
+                    <Space>
+                      <BankOutlined style={{ color: '#3B82F6' }} />
+                      <span>{userProfile.bankName}</span>
+                    </Space>
+                  ) : (
+                    <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Mã số BHXH">
+                  {userProfile.socialInsuranceNumber || userProfile.socialInsuranceCode ? (
+                    <Tag color="cyan">{userProfile.socialInsuranceNumber || userProfile.socialInsuranceCode}</Tag>
+                  ) : (
+                    <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>
+                  )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Mã thẻ BHYT">
+                  {userProfile.healthInsuranceNumber || userProfile.healthInsuranceCode ? (
+                    <Tag color="green">{userProfile.healthInsuranceNumber || userProfile.healthInsuranceCode}</Tag>
+                  ) : (
+                    <Typography.Text type="secondary">Chưa cập nhật</Typography.Text>
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
+            </div>
+          )}
+        </Spin>
+      </Drawer>
     </div>
   );
 };
+
+export default UserManagementPage;

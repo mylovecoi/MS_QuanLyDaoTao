@@ -11,6 +11,11 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { RoomsPage } from './pages/catalog/RoomsPage';
 import { UserManagementPage } from './pages/users/UserManagementPage';
+import { StaffManagementPage } from './pages/users/StaffManagementPage';
+import { StudentManagementPage } from './pages/users/StudentManagementPage';
+import { MenuManagementPage } from './pages/system/MenuManagementPage';
+import { PermissionGroupPage } from './pages/system/PermissionGroupPage';
+import { AccountSettingsPage } from './pages/account/AccountSettingsPage';
 import { ForbiddenPage, NotFoundPage } from './pages/errors/ErrorPages';
 
 const MainApp: React.FC = () => {
@@ -35,10 +40,21 @@ const MainApp: React.FC = () => {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<DashboardPage />} />
+                
+                {/* Catalog */}
                 <Route path="/rooms" element={<RoomsPage />} />
                 <Route path="/subjects" element={<Navigate to="/rooms" replace />} />
                 <Route path="/courses" element={<Navigate to="/rooms" replace />} />
+
+                {/* User & Profiles */}
                 <Route path="/users" element={<UserManagementPage />} />
+                <Route path="/users/staff" element={<StaffManagementPage />} />
+                <Route path="/users/students" element={<StudentManagementPage />} />
+                <Route path="/account/settings" element={<AccountSettingsPage />} />
+
+                {/* System & RBAC */}
+                <Route path="/system/menus" element={<MenuManagementPage />} />
+                <Route path="/system/permission-groups" element={<PermissionGroupPage />} />
               </Route>
             </Route>
 
